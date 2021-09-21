@@ -2,8 +2,9 @@ from aiogram import types
 from aiogram.dispatcher import FSMContext
 
 from handlers.users.commands.feedback import send_gratitude_response
-from loader import dp
+from handlers.users.commands.request import get_user_project_budget
 from states.answers import DetailedAnswer
+from loader import dp
 
 
 @dp.message_handler(text="Готово", state=DetailedAnswer.second_answer)
@@ -13,6 +14,8 @@ async def stop_receiving_files(message: types.Message, state: FSMContext):
     state_data = await state.get_data()
     if state_data["action"] == "get_feedback":
         await send_gratitude_response(message, state)
+    elif state_data["action"] == "get_user_project_info":
+        await get_user_project_budget(message, state)
 
 
 @dp.message_handler(state=DetailedAnswer.first_answer,

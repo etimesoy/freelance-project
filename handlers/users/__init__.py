@@ -1,3 +1,4 @@
+from . import back_menu
 from . import commands
 from . import detailed_answer
 from . import help
