@@ -49,6 +49,13 @@ async def get_contact_details(message: types.Message, state: FSMContext):
     await state.set_state("request__contact_details")
 
 
+@dp.message_handler(state="request__communication_way")
+async def bad_get_contact_details(message: types.Message):
+    await message.answer("Пожалуйста, выбрите пункт из меню ниже 🙂\n\n"
+                         "___________________\n"
+                         "<i>Если Вы передумали, то можно вернуться в Главное Меню введя команду</i> <b>/menu</b>")
+
+
 @dp.message_handler(state="request__contact_details")
 async def get_user_project_info(message: types.Message, state: FSMContext):
     contact_details = message.text
@@ -62,7 +69,7 @@ async def get_user_project_info(message: types.Message, state: FSMContext):
 или выберите соответствующий пункт в меню.</i></b>
 """, reply_markup=done_keyboard)
     await state.update_data(action="get_user_project_info")
-    await DetailedAnswer.first_answer.set()
+    await DetailedAnswer.gather_files_and_messages.set()
 
 
 async def get_user_project_budget(message: types.Message, state: FSMContext):
@@ -74,7 +81,6 @@ async def get_user_project_budget(message: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(project_budget_callback.filter(), state="request__get_user_project_budget")
 async def send_gratitude_response(call: types.CallbackQuery, state: FSMContext, callback_data: dict):
-    call.data
     state_data = await state.get_data()
     user_project_budget = callback_data["amount"]
     await state.update_data(user_project_budget=user_project_budget)
