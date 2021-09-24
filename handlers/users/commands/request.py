@@ -22,7 +22,9 @@ ________________________
 
 
 @dp.message_handler(state="request__get_project_name")
-async def get_project_name(message: types.Message, state: FSMContext):
+async def get_user_name(message: types.Message, state: FSMContext):
+    project_name = message.text
+    await state.update_data(project_name=project_name)
     await message.answer("Отлично!\n<b>Пожалуйста, напишите, как Вас зовут</b>")
     await state.set_state("request__get_user_name")
 
