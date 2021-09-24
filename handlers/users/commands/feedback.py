@@ -40,23 +40,17 @@ async def get_assessment_of_work(call: types.CallbackQuery, state: FSMContext, c
 """, reply_markup=done_keyboard)
     await state.update_data(stars_count=callback_data["count"])
     await state.update_data(action="get_feedback")
-    await DetailedAnswer.first_answer.set()
+    await DetailedAnswer.gather_files_and_messages.set()
 
 
 async def send_gratitude_response(message: types.Message, state: FSMContext):
-    await state.set_state("get_gratitude")
     stars_count = (await state.get_data())["stars_count"]
-    # TODO: вынести эту клавиатуру в специальный модуль с inline клавиатурами
-    keyboard = types.InlineKeyboardMarkup(inline_keyboard=[
-        [
-            types.InlineKeyboardButton("Пропустить", callback_data=feedback_callback.new(action="Пропустить")),
-            types.InlineKeyboardButton("Получить скидку", callback_data=feedback_callback.new(action="Получить скидку"))
-        ],
-        [
-            types.InlineKeyboardButton("Предложить улучшение",
-                                       callback_data=feedback_callback.new(action="Предложить улучшение"))
-        ]
-    ])
+    keyboard = types.InlineKeyboardMarkup(inline_keyboard=[[
+        types.InlineKeyboardButton("Пропустить", callback_data=feedback_callback.new(action="Пропустить")),
+        types.InlineKeyboardButton("Предложить улучшение",
+                                   callback_data=feedback_callback.new(action="Предложить улучшение"))
+    ]])
+    await state.set_state("get_gratitude")
     if stars_count == "1":
         await message.answer("Спасибо за Ваш отзыв! Подскажите, что мы могли бы сделать, чтобы Вы остались довольны?",
                              reply_markup=keyboard)
@@ -77,20 +71,6 @@ async def send_gratitude_response(message: types.Message, state: FSMContext):
         await state.reset_state()
 
 
-@dp.callback_query_handler(feedback_callback.filter(action="Получить скидку"),
-                           state="get_gratitude")
-async def send_discount_code(call: types.CallbackQuery, state: FSMContext):
-    await call.message.edit_reply_markup()
-    discount_code = discount_code_generator()
-    await call.message.answer(f"""Мы очень сожалеем, что Вы не остались довольны нашей работой\. 
-В качестве извинения мы хотим предоставить Вам скидку на дальнейшее обращение за нашими услугами\. 
-Мы верим, что все заслуживают второй шанс\.
-При следующем обращении, пожалуйста, укажите, что Вы получали скидку, Ваш уникальный идентификатор для получения скидки:
-`{discount_code}`""", reply_markup=main_keyboard, parse_mode=types.ParseMode.MARKDOWN_V2)
-    # TODO: сохранить скидочный код пользователя в бд
-    await state.reset_state()
-
-
 @dp.callback_query_handler(feedback_callback.filter(action="Предложить улучшение"),
                            state="get_gratitude")
 async def send_suggestions_for_improvements_message(call: types.CallbackQuery, state: FSMContext):
@@ -101,9 +81,17 @@ async def send_suggestions_for_improvements_message(call: types.CallbackQuery, s
 
 @dp.message_handler(state="get_suggestions_for_improvements_message")
 async def get_suggestions_for_improvements_message(message: types.Message, state: FSMContext):
-    await message.answer("""Спасибо, что поделились с нами!
-Мы дорожим каждым нашим клиентом и обязательно прислушаемся к Вашему предложению.""",
-                         reply_markup=main_keyboard)
+    # TODO: проверить, не имеет ли уже пользователь скидочный код
+    discount_code = discount_code_generator()
+    # TODO: сохранить скидочный код пользователя в бд
+    message_text = "Спасибо, что поделились с нами\!\n" \
+                   "Мы дорожим каждым нашим клиентом и обязательно прислушаемся к Вашему предложению\.\n" \
+                   "Мы очень сожалеем, что Вы не остались довольны нашей работой\. " \
+                   "В качестве извинения мы хотим предоставить Вам скидку на дальнейшее обращение за нашими услугами\. " \
+                   "Мы верим, что все заслуживают второй шанс\.\n" \
+                   "При следующем обращении, пожалуйста, укажите, что Вы получали скидку, Ваш уникальный идентификатор для получения скидки:\n" \
+                   f"`{discount_code}`"
+    await message.answer(message_text, reply_markup=main_keyboard, parse_mode=types.ParseMode.MARKDOWN_V2)
     await state.reset_state()
 
 
