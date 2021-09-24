@@ -104,7 +104,7 @@ async def send_gratitude_response(call: types.CallbackQuery, state: FSMContext, 
         message_text = "Благодарим Вас за оставленную заявку!\n" \
                        "Наши сотрудники в ближайшее время ознакомятся с предоставленной информацией " \
                        "и обязательно Вам напишут.\n" \
-                       "Пожалуйста, укажите удобный для Вас мессенджер."
+                       "<b>Пожалуйста, укажите удобный для Вас мессенджер.</b>"
         await call.message.answer(message_text, reply_markup=messengers_keyboard)
         await state.set_state("request__choose_messenger")
 
