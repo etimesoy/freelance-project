@@ -10,6 +10,9 @@ from loader import dp
 @dp.message_handler(text="Готово", state=DetailedAnswer.gather_files_and_messages)
 async def stop_receiving_files(message: types.Message, state: FSMContext):
     state_data = await state.get_data()
+    if state_data.get("files_count") is None and state_data.get("text_messages_count") is None:
+        await message.answer("Пожалуйста, пришлите хотя бы одно сообщение или файл")
+        return
     if state_data["action"] == "get_feedback":
         await send_gratitude_response(message, state)
     elif state_data["action"] == "get_user_project_info":

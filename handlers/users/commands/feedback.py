@@ -32,13 +32,18 @@ async def get_project_name(message: types.Message, state: FSMContext):
 @dp.callback_query_handler(stars_callback.filter(), state="get_assessment_of_work")
 async def get_assessment_of_work(call: types.CallbackQuery, state: FSMContext, callback_data: dict):
     await call.answer()
-    await call.message.answer("""Спасибо за вашу оценку! <b>Пожалуйста, напишите развернутый отзыв о нашей работе 🙂</b>
+    await call.message.edit_reply_markup()
+    stars_count = callback_data["count"]
+    stars = {"1": "1️⃣⭐️", "2": "2️⃣⭐️", "3": "3️⃣⭐️", "4": "4️⃣⭐️", "5": "5️⃣⭐️️"}
+    prefix = f"<i>Вы выбрали: {stars[stars_count]}</i>\n"
+    message_text = prefix + """Спасибо за вашу оценку! <b>Пожалуйста, напишите развернутый отзыв о нашей работе 🙂</b>
 Вы также можете прикрепить файлы к Вашим сообщениям.
 
 <b><i>Вы можете писать несколькими сообщениями. Когда закончите, просто отправьте отдельным сообщением “Готово” 
 или выберите соответствующий пункт в меню.</i></b>
-""", reply_markup=done_keyboard)
-    await state.update_data(stars_count=callback_data["count"])
+"""
+    await call.message.answer(message_text, reply_markup=done_keyboard)
+    await state.update_data(stars_count=stars_count)
     await state.update_data(action="get_feedback")
     await DetailedAnswer.gather_files_and_messages.set()
 
@@ -75,7 +80,8 @@ async def send_gratitude_response(message: types.Message, state: FSMContext):
                            state="get_gratitude")
 async def send_suggestions_for_improvements_message(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_reply_markup()
-    await call.message.answer("<b>Пожалуйста, напишите, что мы могли бы улучшить 😔</b>")
+    await call.message.answer("<b>Пожалуйста, напишите, что мы могли бы улучшить 😔</b>",
+                              reply_markup=types.ReplyKeyboardRemove())
     await state.set_state("get_suggestions_for_improvements_message")
 
 

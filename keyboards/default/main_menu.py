@@ -2,12 +2,10 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 main_keyboard = ReplyKeyboardMarkup(keyboard=[
     [
-        KeyboardButton("Оставить отзыв")
-    ],
-    [
         KeyboardButton("Оставить заявку для обсуждения проекта")
     ],
     [
+        KeyboardButton("Оставить отзыв"),
         KeyboardButton("Связаться по поводу сотрудничества")
     ],
     [
