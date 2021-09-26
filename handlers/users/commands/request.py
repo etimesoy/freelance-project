@@ -1,5 +1,6 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters import Command
 
 from keyboards.default import communication_ways_keyboard, done_keyboard
 from keyboards.default.main_menu import main_keyboard
@@ -9,7 +10,7 @@ from states.answers import DetailedAnswer
 from loader import dp
 
 
-@dp.message_handler(commands="request")
+@dp.message_handler(Command("request"))
 @dp.message_handler(text="Оставить заявку для обсуждения проекта")
 async def send_welcome_message(message: types.Message, state: FSMContext):
     await message.answer("""<b>Доброго времени суток!</b>

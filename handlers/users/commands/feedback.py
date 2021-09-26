@@ -1,5 +1,6 @@
 from aiogram import types
 from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters import Command
 
 from keyboards.default import done_keyboard
 from keyboards.default.main_menu import main_keyboard
@@ -10,7 +11,7 @@ from utils.misc import discount_code_generator
 from loader import dp
 
 
-@dp.message_handler(commands="feedback")
+@dp.message_handler(Command("feedback"))
 @dp.message_handler(text="Оставить отзыв")
 async def send_welcome_message(message: types.Message, state: FSMContext):
     await message.answer("""<b>Доброго времени суток!</b>

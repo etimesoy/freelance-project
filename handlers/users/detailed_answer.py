@@ -2,7 +2,7 @@ from aiogram import types
 from aiogram.dispatcher import FSMContext
 
 from handlers.users.commands.feedback import send_gratitude_response
-from handlers.users.commands.partnership import get_user_contact_details
+from handlers.users.get_user_info import get_user_contact_details
 from handlers.users.commands.request import get_user_project_budget
 from states.answers import DetailedAnswer
 from loader import dp
