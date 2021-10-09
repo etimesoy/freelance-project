@@ -26,14 +26,6 @@ class Database:
         self.ref = db.reference()
         self.bucket = storage.bucket()
 
-    def upload_file(self, file_info: FileInfo, tg_username: str) -> str:
-        file_name = tg_username + '/' + str(int(datetime.datetime.now().timestamp())) + Path(file_info.name).suffix
-        blob = self.bucket.blob(file_name)
-        blob.metadata = {'firebaseStorageDownloadTokens': uuid4()}
-        blob.upload_from_string(file_info.content.getvalue(), content_type=file_info.content_type)
-        blob.make_public()
-        return blob.public_url
-
     @staticmethod
     def _get_last_id_in_table(table_name: str) -> int:
         table_data = db.reference(table_name).get(shallow=True)
@@ -45,91 +37,165 @@ class Database:
         except ValueError:
             raise ValueError("IDs can only be int-like")
 
-    def _upload_data(self, table_name: str, **kwargs):
+    def get_files_count_in_appeal(self, table_name: str, appeal_id: str):
+        table_ref = self.ref.child(table_name)
+        appeal_table_ref = table_ref.child(str(appeal_id))
+        appeal_data = appeal_table_ref.get(shallow=True)
+        return len([key for key in appeal_data.keys() if key.startswith("file_")])
+
+    def upload_file(self, file_info: FileInfo, tg_username: str,
+                    table_name: str, appeal_id: Union[int, str]) -> bool:
+        """
+        :param file_info:
+        :param tg_username:
+        :param table_name:
+        :param appeal_id: номер (id) заявки/вопроса/отзыва и т.д. в таблице в бд
+        :return: True если файл был успешно загружен и False и противном
+        """
+        table_ref = self.ref.child(table_name)
+        appeal_table_ref = table_ref.child(str(appeal_id))
+        new_file_order_number = self.get_files_count_in_appeal(table_name, appeal_id) + 1
+        if new_file_order_number > 3:
+            return False
+
+        now_timestamp_str = str(int(datetime.datetime.now().timestamp() * 100))
+        file_path = tg_username + '/' + now_timestamp_str + Path(file_info.name).suffix
+        blob = self.bucket.blob(file_path)
+        blob.metadata = {'firebaseStorageDownloadTokens': uuid4()}
+        blob.upload_from_string(file_info.content.getvalue(), content_type=file_info.content_type)
+        blob.make_public()
+
+        appeal_table_ref.update({
+            "file_" + str(new_file_order_number): blob.public_url
+        })
+        return True
+
+    def _upload_data_beginning(self, table_name: str, **kwargs) -> int:
+        """
+        Заносит начальную информацию о заявке/вопросе/отзыве и т.д. в firebase
+
+        :param table_name: название таблицы в firebase
+        :param kwargs: начальная информация
+        :return: номер (id) заявки/вопроса/отзыва и т.д. в firebase
+        """
         last_id = self._get_last_id_in_table(table_name)
         table_ref = self.ref.child(table_name)
 
         update_data = {
             ' '.join(key.split('_')): value for key, value in kwargs.items()
-            if key not in ['date', 'attached_files_links']
+            if key not in ['date']
         }
         update_data.update({
             'is viewed': False,
             'is viewed by admin': False
         })
+
+        table_ref.update({
+            last_id + 1: update_data
+        })
+        return last_id + 1
+
+    def _upload_data_ending(self, table_name: str, appeal_id: Union[int, str], **kwargs):
+        """
+        Заносит конечную информацию о заявке/вопросе/отзыве и т.д. в firebase
+
+        :param table_name: название таблицы в firebase
+        :param appeal_id: номер (id) заявки/вопроса/отзыва и т.д. в таблице в бд
+        :param kwargs: конечная информация
+        :return:
+        """
+        table_ref = self.ref.child(table_name)
+        appeal_table_ref = table_ref.child(str(appeal_id))
+
+        update_data = {
+            ' '.join(key.split('_')): value for key, value in kwargs.items()
+            if key not in ['date']
+        }
+        date: datetime.datetime
         if 'date' in kwargs and kwargs['date'] is not None:
             date = kwargs['date']
         else:
             date = datetime.datetime.now()
         update_data.update(date=date.strftime("%Y-%m-%d %H:%M:%S"))
-        if 'attached_files_links' in kwargs:
-            attached_files_links = kwargs['attached_files_links']
-            for number, file_link in enumerate(attached_files_links, start=1):
-                update_data.update({
-                    "file_" + str(number): file_link
-                })
 
-        table_ref.update({
-            last_id + 1: update_data
-        })
+        appeal_table_ref.update(update_data)
 
-    def add_feedback(self, tg_username: str, project_name: str, mark: Union[str, int],
-                     message: str, attached_files_links: List[str],
-                     discount_code: str = None, desire: str = None,
-                     date: datetime.datetime = None):
-        self._upload_data(table_name='feedbacks', telegram_username=tg_username,
-                          project_name=project_name,
-                          attached_files_links=attached_files_links,
-                          message=message, date=date,
-                          mark=int(mark), discount_code=discount_code, desire=desire)
+    def add_feedback_beginning(self, tg_username: str, project_name: str, mark: Union[str, int]) -> int:
+        return self._upload_data_beginning('feedbacks', telegram_username=tg_username,
+                                           project_name=project_name, mark=int(mark))
 
-    def add_request(self, tg_username: str, user_name: str, project_name: str,
-                    communication_way: str, contact_details: str,
-                    project_description: str, attached_files_links: List[str],
-                    project_budget: str, messenger: str = None, call_time: str = None,
-                    date: datetime.datetime = None):
+    def add_feedback_ending(self, appeal_id: Union[int, str], feedback_message: str,
+                            discount_code: str = None, desire: str = None, date: datetime.datetime = None):
+        return self._upload_data_ending('feedbacks', appeal_id, message=feedback_message,
+                                        discount_code=discount_code, desire=desire, date=date)
+
+    def add_request_beginning(self, tg_username: str, user_name: str, project_name: str,
+                              communication_way: str, contact_details: str) -> int:
+        return self._upload_data_beginning('requests', telegram_username=tg_username, user_name=user_name,
+                                           project_name=project_name, communication_way=communication_way,
+                                           contact_details=contact_details)
+
+    def add_request_ending(self, appeal_id: Union[int, str], project_description: str,
+                           project_budget: str, messenger: str = None, call_time: str = None,
+                           date: datetime.datetime = None):
         # Пользователь не может выбрать одновременно и мессенджер, и время для звонка
         assert not (messenger and call_time)
-        self._upload_data(table_name='requests', telegram_username=tg_username,
-                          user_name=user_name, project_name=project_name,
-                          communication_way=communication_way, contact_details=contact_details,
-                          project_description=project_description,
-                          attached_files_links=attached_files_links, project_budget=project_budget,
-                          messenger=messenger, call_time=call_time, date=date)
+        self._upload_data_ending('requests', appeal_id, project_description=project_description,
+                                 project_budget=project_budget, messenger=messenger,
+                                 call_time=call_time, date=date)
 
-    def add_partnership_type_1(self, tg_username: str, user_name: str, project_name: str,
-                               communication_way: str, contact_details: str,
-                               project_description: str, attached_files_links: List[str],
-                               project_budget: str, messenger: str = None, call_time: str = None,
-                               date: datetime.datetime = None):
-        self._upload_data(table_name='partnerships', partnership_type="Отдать проект",
-                          telegram_username=tg_username, user_name=user_name, project_name=project_name,
-                          communication_way=communication_way, contact_details=contact_details,
-                          project_description=project_description,
-                          attached_files_links=attached_files_links, project_budget=project_budget,
-                          messenger=messenger, call_time=call_time, date=date)
+    def add_partnership_type_1_beginning(self, tg_username: str, user_name: str, project_name: str,
+                                         communication_way: str, contact_details: str) -> int:
+        return self._upload_data_beginning('partnerships', partnership_type="Отдать проект",
+                                           telegram_username=tg_username, user_name=user_name,
+                                           project_name=project_name, communication_way=communication_way,
+                                           contact_details=contact_details)
 
-    def add_partnership_type_2(self, tg_username: str, user_name: str, employment_type: str,
-                               company_name: str, skill_name: str, description: str,
-                               attached_files_links: List[str], contact_details: str,
-                               date: datetime.datetime = None):
+    def add_partnership_type_1_ending(self, appeal_id: Union[int, str], project_description: str,
+                                      project_budget: str, messenger: str = None, call_time: str = None,
+                                      date: datetime.datetime = None):
+        self._upload_data_ending('partnerships', appeal_id, project_description=project_description,
+                                 project_budget=project_budget, messenger=messenger,
+                                 call_time=call_time, date=date)
+
+    # def add_partnership_type_2(self, tg_username: str, user_name: str, employment_type: str,
+    #                            company_name: str, skill_name: str,     description: str,
+    #                            attached_files_links: List[str], contact_details: str,
+    #                            date: datetime.datetime = None):
+    #     self._upload_data(
+    #         # table_name='partnerships', partnership_type="Получить проект",
+    #         # telegram_username=tg_username, user_name=user_name,
+    #         # employment_type=employment_type, company_name=company_name,
+    #         # skill_name=skill_name, description=description,
+    #         # attached_files_links=attached_files_links,
+    #         # contact_details=contact_details, date=date
+    #     )
+
+    def add_partnership_type_2_beginning(self, tg_username: str, user_name: str, employment_type: str,
+                                         company_name: str, skill_name: str) -> int:
         """
         :param tg_username:
         :param user_name:
         :param employment_type: Физическое лицо или компания
         :param company_name:
         :param skill_name: FrontEnd, BackEnd, Mobile или Another
-        :param description:
-        :param attached_files_links:
-        :param contact_details:
-        :param date:
+        :return:
         """
-        self._upload_data(table_name='partnerships', partnership_type="Получить проект",
-                          telegram_username=tg_username, user_name=user_name,
-                          employment_type=employment_type, company_name=company_name,
-                          skill_name=skill_name, description=description,
-                          attached_files_links=attached_files_links,
-                          contact_details=contact_details, date=date)
+        return self._upload_data_beginning('partnerships', partnership_type="Получить проект",
+                                           telegram_username=tg_username, user_name=user_name,
+                                           employment_type=employment_type, company_name=company_name,
+                                           skill_name=skill_name)
+
+    def add_partnership_type_2_ending(self, appeal_id: Union[int, str], description: str,
+                                      contact_details: str, date: datetime.datetime = None):
+        self._upload_data_ending('partnerships', appeal_id, description=description,
+                                 contact_details=contact_details, date=date)
+
+
+
+
+
+
 
     def add_work(self, tg_username: str, user_name: str, skill_name: str, description: str,
                  attached_files_links: List[str], contact_details: str, date: datetime.datetime = None):
