@@ -124,10 +124,10 @@ class Database:
         return self._upload_data_beginning('feedbacks', telegram_username=tg_username,
                                            project_name=project_name, mark=int(mark))
 
-    def add_feedback_ending(self, appeal_id: Union[int, str], feedback_message: str,
-                            discount_code: str = None, desire: str = None, date: datetime.datetime = None):
-        return self._upload_data_ending('feedbacks', appeal_id, message=feedback_message,
-                                        discount_code=discount_code, desire=desire, date=date)
+    def add_feedback_ending(self, appeal_id: Union[int, str], discount_code: str = None,
+                            desire: str = None, date: datetime.datetime = None):
+        return self._upload_data_ending('feedbacks', appeal_id, discount_code=discount_code,
+                                        desire=desire, date=date)
 
     def add_request_beginning(self, tg_username: str, user_name: str, project_name: str,
                               communication_way: str, contact_details: str) -> int:
@@ -135,12 +135,12 @@ class Database:
                                            project_name=project_name, communication_way=communication_way,
                                            contact_details=contact_details)
 
-    def add_request_ending(self, appeal_id: Union[int, str], project_description: str,
+    def add_request_ending(self, appeal_id: Union[int, str],
                            project_budget: str, messenger: str = None, call_time: str = None,
                            date: datetime.datetime = None):
         # Пользователь не может выбрать одновременно и мессенджер, и время для звонка
         assert not (messenger and call_time)
-        self._upload_data_ending('requests', appeal_id, project_description=project_description,
+        self._upload_data_ending('requests', appeal_id,
                                  project_budget=project_budget, messenger=messenger,
                                  call_time=call_time, date=date)
 
@@ -151,25 +151,11 @@ class Database:
                                            project_name=project_name, communication_way=communication_way,
                                            contact_details=contact_details)
 
-    def add_partnership_type_1_ending(self, appeal_id: Union[int, str], project_description: str,
+    def add_partnership_type_1_ending(self, appeal_id: Union[int, str],
                                       project_budget: str, messenger: str = None, call_time: str = None,
                                       date: datetime.datetime = None):
-        self._upload_data_ending('partnerships', appeal_id, project_description=project_description,
-                                 project_budget=project_budget, messenger=messenger,
-                                 call_time=call_time, date=date)
-
-    # def add_partnership_type_2(self, tg_username: str, user_name: str, employment_type: str,
-    #                            company_name: str, skill_name: str,     description: str,
-    #                            attached_files_links: List[str], contact_details: str,
-    #                            date: datetime.datetime = None):
-    #     self._upload_data(
-    #         # table_name='partnerships', partnership_type="Получить проект",
-    #         # telegram_username=tg_username, user_name=user_name,
-    #         # employment_type=employment_type, company_name=company_name,
-    #         # skill_name=skill_name, description=description,
-    #         # attached_files_links=attached_files_links,
-    #         # contact_details=contact_details, date=date
-    #     )
+        self._upload_data_ending('partnerships', appeal_id, project_budget=project_budget,
+                                 messenger=messenger, call_time=call_time, date=date)
 
     def add_partnership_type_2_beginning(self, tg_username: str, user_name: str, employment_type: str,
                                          company_name: str, skill_name: str) -> int:
@@ -186,37 +172,32 @@ class Database:
                                            employment_type=employment_type, company_name=company_name,
                                            skill_name=skill_name)
 
-    def add_partnership_type_2_ending(self, appeal_id: Union[int, str], description: str,
-                                      contact_details: str, date: datetime.datetime = None):
-        self._upload_data_ending('partnerships', appeal_id, description=description,
-                                 contact_details=contact_details, date=date)
+    def add_partnership_type_2_ending(self, appeal_id: Union[int, str], contact_details: str,
+                                      date: datetime.datetime = None):
+        self._upload_data_ending('partnerships', appeal_id, contact_details=contact_details, date=date)
 
-
-
-
-
-
-
-    def add_work(self, tg_username: str, user_name: str, skill_name: str, description: str,
-                 attached_files_links: List[str], contact_details: str, date: datetime.datetime = None):
+    def add_work_beginning(self, tg_username: str, user_name: str, skill_name: str) -> int:
         """
         :param tg_username:
         :param user_name:
         :param skill_name: FrontEnd, BackEnd, Mobile или Another
-        :param description: Описание навыков и компетенций пользователя
-        :param attached_files_links:
-        :param contact_details:
-        :param date:
+        :return:
         """
-        self._upload_data(table_name='works', telegram_username=tg_username, user_name=user_name,
-                          skill_name=skill_name, description=description,
-                          attached_files_links=attached_files_links,
-                          contact_details=contact_details, date=date)
+        return self._upload_data_beginning('works', telegram_username=tg_username,
+                                           user_name=user_name, skill_name=skill_name)
 
-    def add_question(self, tg_username: str, user_name: str, communication_way: str,
-                     contact_details: str, question: str, attached_files_links: List[str],
-                     messenger: str = None, call_time: str = None, date: datetime.datetime = None):
-        self._upload_data(table_name='questions', telegram_username=tg_username, user_name=user_name,
-                          communication_way=communication_way, contact_details=contact_details,
-                          question=question, attached_files_links=attached_files_links,
-                          messenger=messenger, call_time=call_time, date=date)
+    def add_work_ending(self, appeal_id: Union[int, str], contact_details: str,
+                        date: datetime.datetime = None):
+        self._upload_data_ending('works', appeal_id, contact_details=contact_details, date=date)
+
+    def add_question_beginning(self, tg_username: str, user_name: str, project_name: str,
+                               communication_way: str, contact_details: str) -> int:
+        return self._upload_data_beginning('questions', telegram_username=tg_username,
+                                           user_name=user_name, project_name=project_name,
+                                           communication_way=communication_way,
+                                           contact_details=contact_details)
+
+    def add_question_ending(self, appeal_id: Union[int, str], messenger: str = None,
+                            call_time: str = None, date: datetime.datetime = None):
+        self._upload_data_ending('questions', appeal_id, messenger=messenger,
+                                 call_time=call_time, date=date)
