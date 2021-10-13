@@ -9,7 +9,10 @@ from loader import dp
 
 @dp.message_handler(Command("partnership"))
 @dp.message_handler(text="Связаться по поводу сотрудничества")
-async def send_welcome_message(message: types.Message):
+async def send_welcome_message(message: types.Message, state: FSMContext):
+    await state.update_data(command="partnership")
+    await state.update_data(table_name="partnerships")
+    await state.update_data(user_tg_username=message.from_user.username)
     message_text = "<b>Доброго времени суток!</b>\n" \
                    "Очень рады, что Вы решили воспользоваться возможностями нашего бота 🙂\n\n" \
                    "Мы имеем как подрядный, так и субподрядный опыт работы.\n\n" \
@@ -29,8 +32,9 @@ async def send_welcome_message(message: types.Message):
 
 
 @dp.callback_query_handler(partnership_project_callback.filter(choice="Give"))
-async def get_project_name(call: types.CallbackQuery, state: FSMContext, callback_data: dict):
+async def get_project_name(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_reply_markup()
+    await state.update_data(partnership_type="Отдать проект")
     prefix = "<i>Вы выбрали: Я хочу отдать проект на подряд</i>\n"
     message_text = prefix + "<b>Пожалуйста, напишите название вашего проекта</b>"
     await call.message.answer(message_text, reply_markup=types.ReplyKeyboardRemove())
@@ -40,6 +44,7 @@ async def get_project_name(call: types.CallbackQuery, state: FSMContext, callbac
 @dp.callback_query_handler(partnership_project_callback.filter(choice="Get"))
 async def get_user_name(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_reply_markup()
+    await state.update_data(partnership_type="Получить проект")
     prefix = "<i>Вы выбрали: Я хочу получить проект на подряд</i>\n"
     message_text = prefix + "Отлично!\n\n<b>Пожалуйста, напишите, как Вас зовут</b>"
     await call.message.answer(message_text, reply_markup=types.ReplyKeyboardRemove())
@@ -68,7 +73,7 @@ async def get_user_employment_type(message: types.Message, state: FSMContext):
 @dp.callback_query_handler(employment_type_callback.filter(choice="company"),
                            state="partnership__get_user_employment_type")
 async def get_user_company_name(call: types.CallbackQuery, state: FSMContext):
-    await state.update_data(user_employment_type="company")
+    await state.update_data(employment_type="company")
     await call.message.edit_reply_markup()
     prefix = "<i>Вы выбрали: 🏢 Компанию</i>\n"
     message_text = prefix + "<b>Пожалуйста, напишите, какую компанию Вы представляете</b>"
@@ -78,8 +83,8 @@ async def get_user_company_name(call: types.CallbackQuery, state: FSMContext):
 
 @dp.message_handler(state="partnership__get_user_company_name")
 async def get_company_user_skill_name(message: types.Message, state: FSMContext):
-    user_company_name = message.text
-    await state.update_data(user_company_name=user_company_name)
+    company_name = message.text
+    await state.update_data(company_name=company_name)
     await get_user_skill_name(message, state)
 
 
@@ -87,7 +92,7 @@ async def get_company_user_skill_name(message: types.Message, state: FSMContext)
                            state="partnership__get_user_employment_type")
 async def get_individual_user_skill_name(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_reply_markup()
-    await state.update_data(user_employment_type="individual")
+    await state.update_data(employment_type="individual")
     await get_user_skill_name(call.message, state, prefix="<i>Вы выбрали: 👩‍💻 Физическое лицо</i>\n")
 
 

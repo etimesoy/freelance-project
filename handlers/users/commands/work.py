@@ -9,6 +9,8 @@ from loader import dp
 @dp.message_handler(Command("work"))
 @dp.message_handler(text="Вакансии")
 async def send_welcome_message(message: types.Message, state: FSMContext):
+    await state.update_data(table_name="works")
+    await state.update_data(user_tg_username=message.from_user.username)
     message_text = "<b>Доброго времени суток!</b>\n" \
                    "Очень рады, что Вы решили воспользоваться возможностями нашего бота 🙂\n\n" \
                    "Количество проектов растет и мы всецело заинтересованы в новых людях! " \
@@ -23,6 +25,7 @@ async def send_welcome_message(message: types.Message, state: FSMContext):
 async def get_user_skill_name(message: types.Message, state: FSMContext):
     user_name = message.text
     await state.update_data(user_name=user_name)
+    await state.update_data(command="work")
     message_text = f"Приятно познакомиться, {user_name} 🤩\n\n" \
                    "<b>Пожалуйста, укажите Ваше основное направление</b>"
     await message.answer(message_text, reply_markup=skills_names_keyboard)

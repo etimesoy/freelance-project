@@ -9,14 +9,6 @@ from utils.set_bot_commands import set_default_commands
 
 
 async def on_startup(dispatcher):
-    # Создаем подключение к базе данных
-    # logging.info("Создаем подключение к базе данных")
-    # await db.create_pool()
-
-    # Создаем стандартные таблицы, если такие еще не были созданы
-    # logging.info("Создаем таблицы: для ..., ...")
-    # await db.create_standard_tables()
-
     # Устанавливаем дефолтные команды
     await set_default_commands(dispatcher)
 
