@@ -1,27 +1,27 @@
-from io import BytesIO
-
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 
 from handlers.users.commands.feedback import send_gratitude_response as feedback__send_gratitude_response
-from handlers.users.user_info import get_user_contact_details, send_gratitude_response as question__send_gratitude_response
 from handlers.users.commands.request import get_user_project_budget
-from states.answers import DetailedAnswer
+from handlers.users.user_info import get_user_contact_details, \
+    send_gratitude_response as question__send_gratitude_response
 from loader import dp, db
-from utils.misc.file_info import FileInfo
+from states.answers import DetailedAnswer
 
 
 @dp.message_handler(text="Готово", state=DetailedAnswer.gather_files_and_messages)
 async def stop_receiving_files(message: types.Message, state: FSMContext):
-
-    await message.answer("<b>Пожалуйста, подождите, Ваши данные отправляются</b>")
-    # TODO: сделать так чтобы сначала сразу отправилось это сообщение, потом загрузились все файлы
-    # и только потом отправилось следующее сообщение
     state_data = await state.get_data()
+
+    if state_data.get("files_count"):
+        attention_message = await message.answer("<b>Пожалуйста, подождите, Ваши файлы загружаются на сервер</b>")
+        await db.convert_file_ids_to_file_links(state_data["table_name"], state_data["appeal_id"], state_data["user_tg_username"])
     if state_data.get("files_count") is None and state_data.get("text_messages_count") is None:
         await message.answer("Пожалуйста, пришлите хотя бы одно сообщение или файл")
         return
 
+    if state_data.get("files_count"):
+        await attention_message.edit_text("<b>Ваши файлы были успешно загружены на сервер</b>")
     if state_data["command"] == "feedback":
         db._upload_data_ending("feedbacks", state_data["appeal_id"],
                                message=state_data.get("detailed_answer", ""))
@@ -58,38 +58,46 @@ async def stop_receiving_files(message: types.Message, state: FSMContext):
 async def get_file(message: types.Message, state: FSMContext):
     state_data = await state.get_data()
     document = message.document
+
     if message.content_type == "video" or document and document.mime_type.startswith("video/"):
         message_text = "К сожалению, нельзя прикрепить видео 😞\n" \
                        "Вы можете перенести его в облако и продублировать ссылку в сообщении\n"
         await message.answer(message_text)
         return
+
     if message.content_type in ["document", "photo"]:
+        if message.photo:
+            file_name = (await message.photo[-1].get_file()).file_path
+        else:
+            file_name = document.file_name
+        message_text = "Файл <b>" + file_name + "</b> принимается...\n" \
+                       "<i>Пожалуйста, подождите несколько секунд. Мы оповестим вас, когда файл примется.</i>"
+        answered_message = await message.answer(message_text)
+
         user_files_in_database_count = db.get_files_count_in_appeal(state_data["table_name"], state_data["appeal_id"])
         files_count = user_files_in_database_count + 1
+        error_message_text = "К сожалению, нельзя прикрепить больше файлов 😞\n" \
+                             "Вы можете перенести их в облако и продублировать ссылку в сообщении\n" \
+                             "Также Вы можете прикрепить архив с вашими файлами (Максимальный вес: 50 МБ)"
         if files_count > 3:
-            message_text = "К сожалению, нельзя прикрепить больше файлов 😞\n" \
-                           "Вы можете перенести их в облако и продублировать ссылку в сообщении\n" \
-                           "Также Вы можете прикрепить архив с вашими файлами (Максимальный вес: 50 МБ)"
-            await message.answer(message_text)
+            await answered_message.edit_text(error_message_text)
             return
+
         await state.update_data(files_count=files_count)
-        file = BytesIO()
         if message.photo:
-            await message.photo[-1].download(file)
+            file_id = message.photo[-1].file_id
             file_name = (await message.photo[-1].get_file()).file_path
-            file_info = FileInfo(file, file_name, "image/jpeg")
+            mime_type = "image/jpeg"
         else:
-            await document.download(file)
-            file_info = FileInfo(file, document.file_name, document.mime_type)
-        is_file_uploaded = db.upload_file(file_info, state_data["user_tg_username"],
-                                          state_data["table_name"], state_data["appeal_id"])
+            file_id = message.document.file_id
+            file_name = document.file_name
+            mime_type = document.mime_type
+        is_file_uploaded = db.upload_file(file_id, mime_type, state_data["table_name"], state_data["appeal_id"])
         if is_file_uploaded:
-            message_text = "Файл <b>" + file_info.name + "</b> сохранен"
+            await answered_message.edit_text("Файл <b>" + file_name + "</b> принят")
         else:
-            message_text = "К сожалению, нельзя прикрепить больше файлов 😞\n" \
-                           "Вы можете перенести их в облако и продублировать ссылку в сообщении\n" \
-                           "Также Вы можете прикрепить архив с вашими файлами (Максимальный вес: 50 МБ)"
-        await message.answer(message_text)
+            await answered_message.edit_text(error_message_text)
+
     if message.content_type == "text" or message.caption:
         message_text = message.text if message.text else message.caption
         if text_messages_count := state_data.get("text_messages_count"):

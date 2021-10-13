@@ -1,5 +1,5 @@
 import datetime
-from typing import Union, List
+from typing import Union
 from uuid import uuid4
 from pathlib import Path
 
@@ -7,7 +7,6 @@ import firebase_admin
 from firebase_admin import db, credentials, storage
 
 from data.config import DATABASE_URL, PATH_TO_SERVICE_ACCOUNT_KEY, PATH_TO_STORAGE_BUCKET
-from utils.misc.file_info import FileInfo
 
 
 class Database:
@@ -43,11 +42,40 @@ class Database:
         appeal_data = appeal_table_ref.get(shallow=True)
         return len([key for key in appeal_data.keys() if key.startswith("file_")])
 
-    def upload_file(self, file_info: FileInfo, tg_username: str,
+    def get_files_ids_in_appeal(self, table_name: str, appeal_id: str):
+        table_ref = self.ref.child(table_name)
+        appeal_table_ref = table_ref.child(str(appeal_id))
+        appeal_data = appeal_table_ref.get()
+        return [value for key, value in appeal_data.items() if key.startswith("file_")]
+
+    async def convert_file_ids_to_file_links(self, table_name: str, appeal_id: str,
+                                             tg_username: str):
+        from utils.misc.download_file import download_file_by_file_id
+
+        table_ref = self.ref.child(table_name)
+        appeal_table_ref = table_ref.child(str(appeal_id))
+        files_ids_with_mime_types = self.get_files_ids_in_appeal(table_name, appeal_id)
+
+        for file_order_number, file_id_with_mime_type in enumerate(files_ids_with_mime_types, start=1):
+            file_id = " ".join(file_id_with_mime_type.split(" ")[:-1])
+            mime_type = file_id_with_mime_type.split(" ")[-1]
+            file_content, file_path = await download_file_by_file_id(file_id)
+            now_timestamp_str = str(int(datetime.datetime.now().timestamp() * 100))
+            file_path = tg_username + '/' + now_timestamp_str + Path(file_path).suffix
+            blob = self.bucket.blob(file_path)
+            blob.metadata = {'firebaseStorageDownloadTokens': uuid4()}
+            blob.upload_from_string(file_content.getvalue(), content_type=mime_type)
+            blob.make_public()
+
+            appeal_table_ref.update({
+                "file_" + str(file_order_number): blob.public_url
+            })
+
+    def upload_file(self, tg_file_id: str, mime_type: str,
                     table_name: str, appeal_id: Union[int, str]) -> bool:
         """
-        :param file_info:
-        :param tg_username:
+        :param tg_file_id: свойство file_id файла в телеграме, который нужно скачать
+        :param mime_type: mime тип файла в телеграме, который нужно скачать
         :param table_name:
         :param appeal_id: номер (id) заявки/вопроса/отзыва и т.д. в таблице в бд
         :return: True если файл был успешно загружен и False и противном
@@ -58,15 +86,8 @@ class Database:
         if new_file_order_number > 3:
             return False
 
-        now_timestamp_str = str(int(datetime.datetime.now().timestamp() * 100))
-        file_path = tg_username + '/' + now_timestamp_str + Path(file_info.name).suffix
-        blob = self.bucket.blob(file_path)
-        blob.metadata = {'firebaseStorageDownloadTokens': uuid4()}
-        blob.upload_from_string(file_info.content.getvalue(), content_type=file_info.content_type)
-        blob.make_public()
-
         appeal_table_ref.update({
-            "file_" + str(new_file_order_number): blob.public_url
+            "file_" + str(new_file_order_number): tg_file_id + " " + mime_type
         })
         return True
 
