@@ -33,8 +33,9 @@ async def get_user_question_info(message: types.Message, state: FSMContext):
     contact_details = message.text
     await state.update_data(contact_details=contact_details)
     message_text = "Отлично!\n\n" \
-                   "<b>Пожалуйста, напишите Ваш вопрос как можно подробнее, чтобы мы могли смогли помочь Вам</b>\n\n" \
-                   "<b><i>Вы можете писать несколькими сообщениями. " \
+                   "<b>Пожалуйста, напишите Ваш вопрос как можно подробнее, чтобы мы могли смогли помочь Вам.\n" \
+                   "Вы также можете прикрепить 3 файла к Вашим сообщениям общим весом до 50 Мб.\n\n" \
+                   "<i>Вы можете писать несколькими сообщениями. " \
                    "Когда закончите, просто отправьте отдельным сообщением “Готово” " \
                    "или выберите соответствующий пункт в меню.</i></b>"
     await message.answer(message_text, reply_markup=done_keyboard)
