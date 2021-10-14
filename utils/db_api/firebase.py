@@ -6,7 +6,7 @@ from pathlib import Path
 import firebase_admin
 from firebase_admin import db, credentials, storage
 
-from data.config import DATABASE_URL, PATH_TO_SERVICE_ACCOUNT_KEY, PATH_TO_STORAGE_BUCKET
+from data.config import DATABASE_URL, PATH_TO_SERVICE_ACCOUNT_KEY, PATH_TO_STORAGE_BUCKET, DATABASE_API_KEY
 
 
 class Database:
@@ -15,7 +15,7 @@ class Database:
         firebase_admin.initialize_app(cred, {
             "databaseURL": DATABASE_URL,
             "storageBucket": PATH_TO_STORAGE_BUCKET,
-            "apiKey": "AIzaSyDFm7xJ5n_OLM6xHYenLzg2AghEYbI9Ifc",
+            "apiKey": DATABASE_API_KEY,
             "authDomain": "test-freelance-bot.firebaseapp.com",
             "projectId": "test-freelance-bot",
             "messagingSenderId": "90381944667",
