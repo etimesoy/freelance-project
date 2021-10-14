@@ -5,6 +5,6 @@ from data import config
 from utils.db_api.firebase import Database
 
 bot = Bot(token=config.BOT_TOKEN, parse_mode=types.ParseMode.HTML)
-storage = RedisStorage2()
+storage = RedisStorage2(host='tg-redis')
 dp = Dispatcher(bot, storage=storage)
 db = Database()
