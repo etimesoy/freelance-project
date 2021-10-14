@@ -45,10 +45,10 @@ async def get_user_contact_details(message: types.Message, state: FSMContext):
                    "чтобы мы могли с Вами связаться (e-mail/номер телефона)</b>"
     # TODO: может сюда нужно еще добавить мессенджер как способ связи?
     await message.answer(message_text, reply_markup=types.ReplyKeyboardRemove())
-    await state.set_state("get_user_contact_details")
+    await state.set_state("user_info__get_user_contact_details")
 
 
-@dp.message_handler(state="get_user_contact_details")
+@dp.message_handler(state="user_info__get_user_contact_details")
 async def send_concluding_message(message: types.Message, state: FSMContext):
     user_contact_details = message.text
     state_data = await state.get_data()
@@ -95,13 +95,6 @@ async def get_contact_details(message: types.Message, state: FSMContext):
                          reply_markup=types.ReplyKeyboardRemove())
     state_data = await state.get_data()
     await state.set_state(f"{state_data['command']}__contact_details")
-
-
-@dp.message_handler(state="user_info__communication_way")
-async def bad_get_contact_details(message: types.Message):
-    await message.answer("Пожалуйста, выбрите пункт из меню ниже 🙂\n\n"
-                         "___________________\n"
-                         "<i>Если Вы передумали, то можно вернуться в Главное Меню введя команду</i> <b>/menu</b>")
 
 
 @rate_limit(limit=180)
