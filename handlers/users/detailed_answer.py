@@ -13,15 +13,13 @@ from states.answers import DetailedAnswer
 async def stop_receiving_files(message: types.Message, state: FSMContext):
     state_data = await state.get_data()
 
+    attention_message = await message.answer("<b>Пожалуйста, подождите, Ваши сообщения и файлы загружаются на сервер</b>")
     if state_data.get("files_count"):
-        attention_message = await message.answer("<b>Пожалуйста, подождите, Ваши файлы загружаются на сервер</b>")
         await db.convert_file_ids_to_file_links(state_data["table_name"], state_data["appeal_id"], state_data["user_tg_username"])
     if state_data.get("files_count") is None and state_data.get("text_messages_count") is None:
         await message.answer("Пожалуйста, пришлите хотя бы одно сообщение или файл")
         return
 
-    if state_data.get("files_count"):
-        await attention_message.edit_text("<b>Ваши файлы были успешно загружены на сервер</b>")
     if state_data["command"] == "feedback":
         db._upload_data_ending("feedbacks", state_data["appeal_id"],
                                message=state_data.get("detailed_answer", ""))
@@ -41,6 +39,8 @@ async def stop_receiving_files(message: types.Message, state: FSMContext):
     elif state_data["command"] == "question":
         db._upload_data_ending("questions", state_data["appeal_id"],
                                question=state_data.get("detailed_answer", ""))
+
+    await attention_message.edit_text("<b>Ваши сообщения и файлы были успешно загружены на сервер</b>")
 
     if state_data["action"] == "get_feedback":
         await feedback__send_gratitude_response(message, state)
